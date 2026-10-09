@@ -1,0 +1,31 @@
+Q19：
+	Data.Damage中再细分一下类型为子弹伤害，删除命中表现Cue，GameplayCue.Damage.Impact
+Q20：
+	DoT 用 GameplayCueNotify_Actor、每跳不播。烟雾本体走 Cue 统一表现层（在 UFPSAbility_Smoke 激活时 ExecuteGameplayCueOnOwner，Cue 里 spawn 烟雾）、Cue 蓝图目录 Content/FPS_NetWork0/AbilitySystem/GameplayCues/。
+Q21:
+	 (a)：GE_ResetAttributes 用 C++ 子类 UFPSResetAttributesEffect，UFPSResetAttributesEffect 里用 AttributeBased 的FGameplayEffectAttributeCaptureDefinition
+Q22：
+	 沿用参考工程：GE 施加时传负值，Modifier 用 Additive。DoDamage_Implementation 内部把传入的正数取负再 Assign。
+Q23：
+	仍建 UFPSAbilitySystemComponent 薄子类（继承 UAbilitySystemComponent，暂时只预留 ActivateOnGiven逻辑），与参考架构一致，以后加被动能力方便。
+Q24：
+	(a) 开局满盾：MaxShield 有值，属性初始化 GE 里把 Shield 设到 Max。方便立刻看到 UI 效果、方便测试。
+Q25：
+	两个都要，放到 D:\Projects\UE_Projects\FPS_GAS\GAS_Setup.md
+Q26：
+	  (a) C++ 只管新增的护盾文本：新加 Text_ShieldValue，护盾 >0 时显示护盾值、=0 时 Collapsed；HealthNumber原样由蓝图负责。视觉结果：有盾时看到「盾条 + 盾数值 +血数值」，盾破后盾的那一套消失，只剩血数值——符合你要的效果，且零冲突。
+
+Q27：
+	可以接受把 W_Healthbar 的父类从 UserWidget 改成 C++ 类
+Q28：
+	补充：伤害超过护盾值后，多余伤害要使用血量扣除
+Q29：
+	（a）
+Q30：
+	材质先不用考虑，我后续回去查找必要资源，目前给出创建步骤即可
+Q31：
+	 一个 UFPSDamageOverTimeEffect 类吃遍所有 DoT，差异全靠蓝图子类在编辑器里覆盖，这样不会有过多C++文件硬编码，后续可以使用动态数值
+
+
+
+	

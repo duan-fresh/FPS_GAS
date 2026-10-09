@@ -1,0 +1,14 @@
+Q21：
+	做按键：GameMode 加 bool bMatchStartRequested，房主按键 → Server RPC 置 true；ReadyToStartMatch() 返回NumPlayers >= 2 && bMatchStartRequested；人数不足时按键给个"人数不足"提示。
+Q22：
+	能跑动、不能互相伤害、不重生、弹结算UI
+Q23：
+	实在不行，直接重开地图，导致会重新读取SaveGame
+Q24：
+	NativeConstruct 里起一个 0.25 秒循环 Timer，遍历
+    GetWorld()->GetGameState()->PlayerArray（现在复制对了）算最高分，变了才刷 Text。
+Q25：
+	添加一个玩家名字String
+	放在Source/FPS_NetWork0/Public/Data/FPSPlayerSaveGame.h
+	大就覆盖对的。
+	"历史最高连杀"客户端要LoadSaveGame来获得历史最高连杀，保存在PlayerState中，在游戏结束时，对比当前数组与读取数组，大则更新

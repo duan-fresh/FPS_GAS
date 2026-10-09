@@ -1,0 +1,21 @@
+注意只有一张图没有换图
+Q1：
+	直接复用
+Q2：
+	继承AGameMode
+Q3：
+	计划是：Lobby作为大厅和出生点，后面会换GameMode，之后会添加一个地图用于MultiplayerSessions 插件的跳转
+Q4：
+	什么意思
+Q5：
+	复用 UEliminationComponent 的连杀计数，死亡清零、无时间窗口。存档只在 MaxKillStreak < 当前连杀 时更新。
+Q6：
+	本机玩家一份档案，存 <SavedDir>/SaveGames/PlayerProfile.sav。GameInstance 这一轮只做存档读写（LoadProfile /SaveProfile / GetProfile），不要顺手塞 session 管理——那是 MultiplayerSessions 插件的活。
+Q7：
+	一局游戏结束+ 退出游戏时
+Q8：
+	独立一个 UFPSLeaderBoardWidget +Content/FPS_NetWork0/UI/WBP_LeaderBoard.uasset，再塞进 WBP_ShooterOverlay
+Q9：
+	多人才开启游戏，只有 1 人时隐藏第二行并且结束游戏获胜；并列时按 PlayerArray 顺序取第一个
+
+	

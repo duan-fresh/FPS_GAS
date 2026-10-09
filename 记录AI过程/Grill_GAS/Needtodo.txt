@@ -1,0 +1,5 @@
+你要在编辑器里手建的资产（我会在注释和 md 里给逐字段步骤）
+
+  GE_InitAttributes(蓝图) · BP_GE_Burn · GE_SmokeCooldown · BP_GA_Smoke · GC_Burn(Looping) · GC_SmokeBurst(Burst) ·
+  BP_SmokeCube · M_Smoke · IA_Smoke · 改 W_Healthbar 父类与控件 · 在 BP_FPSPlayerState/BP_FPSCharacter 里填字段。
+

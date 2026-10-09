@@ -1,0 +1,304 @@
+---
+这个工程**不是 git 仓库**。本次改动涉及 16 个已有文件、18 个新增文件。
+---
+
+## 1. 已完成的 C++ 改动（你不需要操作，仅供核对）
+
+### 新增文件（20 个）
+| 文件 | 作用 |
+|---|---|
+| `Source/FPS_NetWork0/Public/AbilitySystem/FPSAttributeSet.h` + `Private/.../.cpp` | 属性集：Health / MaxHealth / Shield / MaxShield / IncomingDamage |
+| `Public/AbilitySystem/FPSAbilitySystemComponent.h` + cpp | ASC 子类，预留 `Ability.ActivateOnGiven` |
+| `Public/AbilitySystem/Abilities/FPSGameplayAbility.h` + cpp | GA 基类（InstancedPerActor + ServerOnly） |
+| `Public/AbilitySystem/Abilities/FPSAbility_Smoke.h` + cpp | 烟雾弹能力 |
+| `Public/AbilitySystem/Effects/FPSDamageEffect.h` + cpp | 子弹直击伤害 GE |
+| `Public/AbilitySystem/Effects/FPSDamageOverTimeEffect.h` + cpp | 持续扣血（DoT）GE |
+| `Public/AbilitySystem/Effects/FPSResetAttributesEffect.h` + cpp | 重生属性重置 GE |
+| `Public/AbilitySystem/Smoke/FPSmokeCube.h` + cpp | 烟雾本体 Actor |
+| `Public/UI/HealthBarWidget.h` + cpp | 血条 C++ 基类（只加护盾条与护盾数值） |
+### 修改的已有文件（16 个）
+| 文件 | 改动 |
+|---|---|
+| `FPS_NetWork0.uproject` | 启用 `GameplayAbilities` 插件 |
+| `Source/FPS_NetWork0/FPS_NetWork0.Build.cs` | 加 `GameplayTasks`、`GameplayAbilities` 依赖 |
+| `Config/DefaultGame.ini` | 加 `GameplayCueNotifyPaths` |
+| `Public/Tags/ShooterGameplayTags.h` + `Private/Tags/ShooterGameplayTags.cpp` | 新增 `FPSTags` 命名空间（9 个标签） |
+| `Public/Player/FPSPlayerState.h` + cpp | 实现 `IAbilitySystemInterface`，挂 ASC + AttributeSet |
+| `Public/Character/FPSCharacter.h` + cpp | 实现 `IAbilitySystemInterface`；ASC 初始化；IA_Smoke；DoDamage 改走 GE |
+| `Public/Health/HealthComponent.h` + cpp | 加 Shield / MaxShield / OnShieldChanged / SetFromGAS |
+| `Public/Weapon/Weapon.h` | 加 `DoTEffect`、`DoTDamagePerTick` |
+| `Private/Combat/CombatComponent.cpp` | `Sever_Fire` 里施加 DoT |
+| `Private/Game/FPSGameMode.cpp` | 重生时施加属性重置 GE |
+
+> 少数几处已有代码被 `/* //original code … */` 注释掉、新代码包在 `//Modify//` 之间。
+> 想回退某处改动，搜 `//Modify//` 即可定位。
+---
+## 2. 重新生成工程并编译
+---
+## 3. 建资产（按顺序做，前一步是后一步的输入）
+### 3.1 目录准备
+在 `Content/FPS_NetWork0/` 下新建这几个文件夹：
+
+```
+AbilitySystem/
+├── Abilities/     ← 能力蓝图
+├── Effects/       ← GameplayEffect 蓝图
+├── Smoke/         ← 烟雾 Actor 蓝图
+├── Materials/     ← 烟雾材质
+└── Cue/           ← GameplayCue 蓝图（⚠ 名字和 DefaultGame.ini 里配的路径必须一致）
+```
+---
+
+### 3.2 `GE_InitAttributes`（属性初始值）{GreatHandling}
+
+1. `AbilitySystem/Effects/` → 右键 → Blueprint Class → All Classes → 搜 `GameplayEffect`。
+2. 命名 `GE_InitAttributes`。
+3. Details 面板：
+   - **Duration Policy = Instant**
+4. **Modifiers 数组加 4 条，顺序不能错**：
+
+   | # | Attribute | Modifier Op | Magnitude |
+   |---|---|---|---|
+   | 0 | MaxHealth | Override | 100.0 |
+   | 1 | MaxShield | Override | 50.0 |
+   | 2 | Health | Override | 100.0 |
+   | 3 | Shield | Override | 50.0 |
+
+   > ⚠ **Max 必须排在前面**：`UFPSAttributeSet::PreAttributeChange` 会把 Health
+   > Clamp 到 `[0, MaxHealth]`。若 Health 先执行，此刻 MaxHealth 还是 0，血会被清成 0。
+   > 代码里已加 `GetMaxHealth() > 0` 保护，这里是双保险。
+
+**要调手感就改这两个数值**：MaxShield = 50 配合武器 Damage = 15，约等于能挡 3.3 发。
+
+---
+
+### 3.3 `BP_GE_BulletDamage`（子弹直击伤害）
+
+1. `AbilitySystem/Effects/` → Blueprint Class → 搜 `FPSDamageEffect`。
+2. 命名 `BP_GE_BulletDamage`。
+3. **不要改任何字段**，保持继承即可。
+
+---
+
+### 3.4 `BP_GE_Burn`（燃烧 DoT）
+
+1. `AbilitySystem/Effects/` → Blueprint Class → 搜 `FPSDamageOverTimeEffect`。
+2. 命名 `BP_GE_Burn`。
+3. 覆盖这几个字段：
+   - **Duration → Duration Magnitude**：Set By = Scalable Float，**Value = 5.0**
+   - **Duration|Period → Period**：**Value = 0.5**
+   - **Gameplay Cues 数组**加一条：`Gameplay Cue Tags = GameplayCue.DamageOverTime.Burn`，Min Level 0，Max Level 1
+   - **Components → Add →Tags This Effect Has → Added 加 `Effect.DamageOverTime.Burn`//错误1
+4. Modifiers 里的 SetByCaller 标签保持默认（`Data.Damage.Fire`），**不用动**。
+5. Stacking 分类**一个字都别改**（StackingType 已被引擎隐藏，叠加规则固定写在 C++ 里）。
+
+---
+### 3.5 `BP_GE_ResetAttributes`（重生重置）
+1. `AbilitySystem/Effects/` → Blueprint Class → 搜 `FPSResetAttributesEffect`。
+2. 命名 `BP_GE_ResetAttributes`。
+3. **不需要配任何数值** —— 它读的是目标的 MaxHealth / MaxShield。
+---
+
+### 3.6 `GE_SmokeCooldown`（烟雾弹冷却）
+
+1. `AbilitySystem/Effects/` → Blueprint Class → 搜 `GameplayEffect`。
+2. 命名 `GE_SmokeCooldown`。
+3. **Duration Policy = Has Duration**，**Duration Magnitude = 15.0**
+4. ⚠ 关键一步（5.3 之后旧字段已废弃，必须走 Component）：
+   - Details 面板拉到最下 **Components** 区域 → **+ Add** → **Target Tags Gameplay Effect Component**//{错误}2：这里的名称有问题但是没关系
+   - 展开它 → **Target Tags → Added** → 加一条 `Cooldown.Smoke`
+
+---
+
+### 3.7 `M_Smoke`（半透明烟雾材质）
+
+引擎**没有**现成的半透明材质，必须自己建。
+
+1. `AbilitySystem/Materials/` → 右键 → Material → 命名 `M_Smoke`。
+2. 打开后：
+   - **Blend Mode = Translucent**
+   - **Shading Model = Unlit**
+   - **Two Sided = 勾上**（玩家可能从烟雾内部看）
+   - Base Color 给个浅灰白 (0.75, 0.75, 0.78)，Opacity 给 0.6
+3. 保存。
+
+---
+
+### 3.8 `BP_SmokeCube`（烟雾本体）
+
+1. `AbilitySystem/Smoke/` → Blueprint Class → 搜 `FPSmokeCube` → 命名 `BP_SmokeCube`。
+2. Class Defaults → Category `FPS|Smoke`：
+
+   | 字段 | 值 |
+   |---|---|
+   | Cube Mesh | `/Engine/BasicShapes/Cube`（默认已填） |
+   | **Smoke Material** | **`M_Smoke`** ← 必改 |
+   | Flying Scale | 0.5 |
+   | Deployed Scale | 5.0 |
+   | Life Seconds | 12.0 |
+   | **Landing Cue Tag** | **`GameplayCue.Smoke`** ← 必填 |
+
+3. 可选：事件图里实现 **On Smoke Deployed**，加粒子效果。
+   现成可用的占位：`Content/Effects/Particles/Weapons/Emitters/NE_MuzzleFlashSmokePuff`。
+
+---//可以额外加GC_Smoke，使用Cue，或是实现蓝图函数，使用粒子效果
+
+### 3.9 `BP_GA_Smoke`（烟雾弹能力）
+1. `AbilitySystem/Abilities/` → Blueprint Class → 搜 `FPSAbility_Smoke` → 命名 `BP_GA_Smoke`。
+2. Class Defaults：
+   - **Cooldowns → Cooldown Gameplay Effect Class = `GE_SmokeCooldown`** ← 必填
+   - Category `FPS|Smoke` → **Smoke Cube Class = `BP_SmokeCube`** ← 必填
+   - Throw Speed = 1200 / Throw Pitch Offset = 20 / Spawn Forward Offset = 100
+   - Tags 分类下的 Asset Tags 与 Activation Blocked Tags **已在 C++ 里设好，不用动**
+---
+
+### 3.10 `GC_Burn`（燃烧表现 Cue）
+1. `AbilitySystem/Cue/` → Blueprint Class → 搜 `GameplayCueNotify_Actor` → 命名 `GC_Burn`。
+2. Details：
+   - **Gameplay Cue Tag = `GameplayCue.DamageOverTime.Burn`**
+   - **Cleanup → Auto Destroy on Remove = 勾上**
+   - **Gameplay Cue → Auto Attach To Owner = 勾上**（燃烧特效要跟着角色跑）
+3. 事件图里实现  **On Burst** / **On Become Relevant**加粒子。先留空也能跑通逻辑。
+
+{Error}：UE 5.5 版本重命名了
+原来的 On Active：现已更名为 On Burst
+原来的 While Active：现已更名为 On Become Relevant
+原来的 On Remove：现已更名为 On Cease Relevant
+
+事件图里实现 **On Burst** / **On Become Relevant** 加粒子。先留空也能跑通逻辑。
+
+> ⚠ UE5 把 `_Actor` 版这三个事件的**蓝图显示名改了**（C++ 函数名没变）：
+> `OnActive` → **On Burst**、`WhileActive` → **On Become Relevant**、`OnRemove` → **On Cease Relevant**。
+> 依据 `Engine/Plugins/Runtime/GameplayAbilities/Source/GameplayAbilities/Public/GameplayCueNotify_Actor.h:94`，
+> 所以事件图里**搜不到 "On Active" 是正常的**。
+> 另外 `WhileActive` 只在「变为可见」时触发一次（中途加入等），**不是周期事件** ——
+> 持续火焰得自己在 Tick 里管理组件；周期表现真正对应的是 `GameplayCueNotify_Looping` 的
+> `Recurring Effects`（对应每次 DoT 跳伤）。
+
+---
+
+### 3.11 `GC_SmokeBurst`（烟雾落地表现 Cue）
+1. `AbilitySystem/Cue/` → Blueprint Class → 搜 `GameplayCueNotify_Burst` → 命名 `GC_SmokeBurst`。
+2. Details：**Gameplay Cue Tag = `GameplayCue.Smoke`**。
+3. 事件图里实现 **On Burst**，在 `Location` 处播一次性爆发粒子。
+   （`_Burst` 是 `_Static` 的子类，唯一的蓝图事件就叫 `On Burst`，没有 "On Execute" ——
+   `GameplayCueNotify_Burst.h:32`）
+
+
+> 这里用 `_Burst`（一次性）而不是 `_Actor`，原因见 `FPSmokeCube.h` 顶部注释：
+> `_Actor` 类型的 Cue 是在 `TargetActor->GetActorLocation()` 处 spawn 的、不复制、
+> 且孤立调用 `ExecuteGameplayCue` 时不会自动销毁。持续可见的烟雾由
+> **BP_SmokeCube 自己**承担（它是 Replicates 的 Actor）。
+---
+
+### 3.12 `IA_Smoke`（输入资产）
+1. `Content/FPS_NetWork0/Input/InputAction/` → 右键 → Input → Input Action → 命名 `IA_Smoke`。
+2. 打开 → **Value Type = Digital (bool)**。
+3. 打开 `Content/FPS_NetWork0/Input/IMC_FPS` → Mappings → **+** → 选 `IA_Smoke` → 绑一个键（例如 `G`）。
+---
+
+## 4. 填蓝图字段（把上面的资产接起来）
+
+### 4.1 `BP_FPSPlayerState`
+
+打开 `Content/FPS_NetWork0/Player/BP_FPSPlayerState` → Class Defaults → Category `FPS|GAS`：
+
+- **Init Attributes Effect = `GE_InitAttributes`** ← 必填，不填则血量上限为 0
+- **Reset Attributes Effect = `BP_GE_ResetAttributes`** ← 必填，不填则重生后血量为 0（死循环）
+
+### 4.2 `BP_FPSCharacter`
+
+打开 `Content/FPS_NetWork0/Character/BP_FPSCharacter` → Class Defaults：
+
+- Category `FPS|GAS`：
+  - **Damage Effect Class = `BP_GE_BulletDamage`** ← 必填
+  - **Startup Abilities** 数组加一条 → **`BP_GA_Smoke`** ← 不填则按 G 没反应
+- Category `FPS|Input`：
+  - **IA_Smoke = `IA_Smoke`** ← 必填
+
+### 4.3 武器（可选，想要燃烧弹才做）
+
+打开 `Content/FPS_NetWork0/Weapon/BP_Rifle` → Class Defaults → Category `FPS|Damage`：
+
+- **DoT Effect = `BP_GE_Burn`**
+- **DoT Damage Per Tick = 3.0**（正数；5 秒 × 10 跳 = 30 伤害）
+
+> 不填就是普通的枪，直击伤害照常走 GAS。想做「中毒子弹」= 复制 `BP_Rifle`
+> 换一个派生自 `FPSDamageOverTimeEffect` 的蓝图，两种 DoT 会各自独立跳伤害。
+
+### 4.4 `W_Healthbar`（护盾条 UI）
+
+打开 `Content/FPS_NetWork0/UI/W_Healthbar`：
+
+1. **右键 → Reparent Blueprint → 搜 `HealthBarWidget` → 选 `FPSHealthBarWidget`**。
+2. 编辑器会立刻提示缺少两个 BindWidget 控件（预期内），补上：
+   - **Add Widget → Progress Bar → 改名 `ShieldBar_Fill`**
+     - 叠在 `HealthBar_Fill` 同一区域
+     - Fill Color 设成蓝色（如 0.15, 0.45, 1.0, 0.9）
+     - Percent 先给 1.0（运行时由 C++ 覆盖）
+   - **Add Widget → Text → 改名 `Text_ShieldValue`**
+     - 放在血条数值附近，字号与 `HealthNumber` 一致
+3. Compile → Save。
+4. ⚠ **原有的 `HealthNumber`、`HealthBar_Fill`、`HealthBar_Glow`、`HealthBar_BarBorder`、
+   `HealthBar_NumberBorder`、`HealthBar_Shadow`、`EliminatedText` 以及所有动画，
+   一个都不要改** —— 它们仍由原蓝图逻辑驱动，C++ 完全不碰。
+
+---
+
+## 5. 验收清单
+
+### 5.1 单机（PIE，Play → 1 Player）
+
+- [ ] 开局血条满血 **且有蓝色护盾条 + 护盾数字 50**
+- [ ] 打自己/被打：**先掉护盾条**（蓝条变短、数字变小）
+- [ ] 护盾归零后：**护盾条与护盾数字一起消失**，随后才掉红色血条
+- [ ] 按下 `G`：扔出一个方块，抛物线落地 → 停住 → 放大成 5 米烟团 → 12 秒后消失
+- [ ] 扔完立刻再按 `G`：扔不出来（冷却 15 秒）；等冷却好了能再扔
+- [ ] 血量归零 → 死亡表现 → 3 秒后重生，**血条与护盾都是满的**（不是 0）
+
+### 5.2 双人（PIE → Number of Players = 2）
+
+- [ ] 玩家 A 扔烟雾，**玩家 B 也能看到烟**（验证 Actor 复制）
+- [ ] 玩家 B 能**走进烟雾里**（验证可穿越）
+- [ ] 玩家 B 朝烟雾开枪，**子弹能穿过去**（验证不挡子弹）
+- [ ] A 打 B：**B 的护盾条掉、A 看到的 B 没有护盾 UI**（护盾/血量是 COND_OwnerOnly，只有本人可见）
+- [ ] 给 BP_Rifle 配上 `BP_GE_Burn` 后：被打中的人身上出现燃烧 Cue，**每 0.5 秒掉一次血**，
+      且掉血时**先扣护盾**；打死后燃烧立刻停止
+
+### 5.3 常见故障对照
+
+| 现象 | 原因 |
+|---|---|
+| 编译报找不到 `AbilitySystemInterface.h` | `.uproject` 没启用 GameplayAbilities，或没重新生成 VS 工程 |
+| 开局血条是 0 / 血条不动 | `BP_FPSPlayerState` 的 **Init Attributes Effect** 没填 |
+| 重生后立刻又死 | `BP_FPSPlayerState` 的 **Reset Attributes Effect** 没填 |
+| 能开枪但打不掉血 | `BP_FPSCharacter` 的 **Damage Effect Class** 没填 |
+| 按 G 没反应 | `BP_FPSCharacter` 的 **IA_Smoke** 没填，或 `IMC_FPS` 没绑按键 |
+| 能扔但可以无限连扔 | `BP_GA_Smoke` 的 Cooldown GE 没填，或 `GE_SmokeCooldown` 少了 `Cooldown.Smoke` 标签 |
+| 有烟但没有落地爆发效果 | Cue 蓝图不在 `Content/FPS_NetWork0/AbilitySystem/Cue/` 目录内 |
+| 只有自己看得到烟 | `BP_SmokeCube` 的父类被改错（应继承 `FPSmokeCube`） |
+| 蓝图编译报 BindWidget 找不到 | `ShieldBar_Fill` / `Text_ShieldValue` 名字拼错或控件类型不对 |
+| 血条抖动 / 数值闪 | 大概率是动了 `HealthNumber` 的原有逻辑，恢复它 |
+
+---
+
+## 6. 已知注意事项
+
+1. **`Content/FPS_NetWork0/AbilitySystem/Cue/` 是唯一的 Cue 目录。**
+   `DefaultGame.ini` 里显式配置了 `GameplayCueNotifyPaths`，引擎不再 fallback 扫描整个 `/Game`。
+
+2. **烟雾弹没有做客户端预测。** 按下到出现有 1 个 RTT 的延迟，这是既定取舍
+   （与工程现有的 `Local_Fire` + `Sever_Fire` 模式一致）。
+
+3. **`StackingType` 在 UE 5.8 已被标记废弃**，编辑器详情面板会隐藏它。
+   DoT 的叠加规则固定为「同来源刷时长、不同 GE 叠加」，写在 C++ 构造函数里，蓝图改不了。
+   `FPSDamageOverTimeEffect.cpp` 里用 `PRAGMA_DISABLE_DEPRECATION_WARNINGS` 包住了那行赋值。
+
+4. **血量/护盾的复制已从 `UHealthComponent` 移到 `UFPSAttributeSet`**
+   （两者都是 `COND_OwnerOnly`，语义不变）。`UHealthComponent` 上的
+   `Health` / `MaxHealth` 现在是 GAS 的镜像，由 `SetFromGAS()` 单向驱动。
+
+5. **`Source/FPS_NetWork0/Public/Interfaces/PlayerInterface.h:6`** 仍有一条指向
+   `C:\Program Files\...` 的绝对路径 include。本机开发不受影响，
+   但换机器或打 `TargetType.Game/Server` 时会编译失败。
+   （本次按你的要求未改动它。）

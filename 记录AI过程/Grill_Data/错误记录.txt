@@ -1,0 +1,42 @@
+【1】冗余函数与操作，与Effort太低可能有关系
+
+FPSPlayerState->Client_MatchEnded(
+          FPSPlayerState->GetScoredElims(),
+          FPSPlayerState->GetHighestStreak(),
+          FPSPlayerState->GetDefeats(),
+          FPSPlayerState == Winner);void AFPSPlayerState::Client_MatchEnded_Implementation(int32 InKills, int32
+  InStreak, int32 InDeaths, bool bWon)
+  {
+      // 这条 RPC 只在【本机玩家自己的机器】上执行一次，所以它同时承担两件事：
+      //   1. 给结算 UI 提供本局战绩快照；
+      //   2. 把本机玩家的档案写盘。
+      // 客户端自己读、自己存，不依赖服务端知道"谁是本机玩家" —— 将来换成 dedicated server 也成立。
+      MatchKills = InKills;
+      MatchStreak = InStreak;
+      MatchDeaths = InDeaths;
+      bMatchEndedForMe = true;
+
+  if (bWon)
+  {
+      bWinner = true;
+  }
+  if (UFPSGameInstance* FPSGameInstance = GetWorld() ? Cast<UFPSGameInstance>(GetWorld()->GetGameInstance()) : nullptr)
+  {
+      FPSGameInstance->SaveMatchResult(GetPlayerName(), InKills, InStreak, bWon);
+  }
+
+  OnMatchEnded.Broadcast(bWon);
+  }    //Modify//
+      // ---------------- 比赛结束 / 存档 ----------------
+      // 下面这三个字段原本是 private 裸值，全项目没有任何读法；存档与结算 UI 都需要它们。
+
+  int32 GetHighestStreak() const { return HighestStreak; }
+  int32 GetDefeats() const { return Defeats; }
+  bool IsWinner() const { return bWinner; }
+
+  /** 本局战绩快照，由 Client_MatchEnded 填入，供结算 UI 显示。 */
+  int32 GetMatchKills() const { return MatchKills; }
+  int32 GetMatchStreak() const { return MatchStreak; }
+  int32 GetMatchDeaths() const { return MatchDeaths; }
+  bool HasMatchEndedForMe() const { return bMatchEndedForMe;}
+这里为什么还要在外界调用自己内部的Get函数，来传入自己的数据，这里这些Get数据完全不用经过外部，只用暴露一个数据ScoredElims，将其改为Public或是编写Get函数，之后判断Winner是不是自己就可以了。而且对于SaveGame的数据保存在本地的PlayerState即可，写为GlobalHighest...，Match这个名字有误导性，真实被处理的数据明明就是HithestStreak，ScoredElim，这样的编写架构和易理解性极差。

@@ -1,0 +1,2 @@
+一、改进
+	（1）如果你想做真正的"加入权限"（比如 Teams 房只让好友进、CTF 房需要密码），现有框架需要改：在 MultiplayerSessionsSubsystem.cpp:48 那段 FOnlineSessionSettings 里按类型设置 bShouldAdvertise / bAllowJoinViaPresence，或改用 Steam Lobby 的 LobbyType，并在 Menu.cpp:108 的比对循环里加上房主侧的校验回执。要做的话我可以直接改。

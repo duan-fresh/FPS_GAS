@@ -1,0 +1,60 @@
+# ============================================================
+# FPS_GAS 工作区总仓库 .gitignore
+#
+# 注意：FPS_NetWork0 以 submodule 形式引入，其内部忽略规则
+# 由 FPS_NetWork0 仓库自己的 .gitignore 负责，本文件不干预。
+# ============================================================
+
+# --- 打包成品（约 1.3 GB，含 329MB exe 与 367MB pdb，不入库）---
+Windows/
+
+# --- 本地 AI 配置（settings.local.json 为本机私有设置）---
+.claude/
+
+# --- Visual Studio / Rider ---
+.vs/
+.idea/
+.vsconfig
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+*.sdf
+*.opensdf
+*.VC.db
+*.VC.opendb
+
+# --- UE 编译缓存与中间产物 ---
+# 当前由 submodule 隔离，此处作为日后脱离 submodule 时的兜底
+Binaries/
+Build/
+DerivedDataCache/
+Intermediate/
+Saved/
+Plugins/*/Binaries/
+Plugins/*/Intermediate/
+
+# --- 编译产物 ---
+*.obj
+*.pdb
+*.pch
+*.exe
+*.dll
+*.lib
+*.o
+*.so
+*.a
+
+# --- 打包/烘焙后的资源容器（大体积，且 GitHub 单文件 100MB 硬限）---
+# 需要版本化时请改用 Git LFS
+*.ucas
+*.utoc
+*.pak
+
+# --- 操作系统 / 编辑器临时文件 ---
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+.DS_Store
+._*
+*~

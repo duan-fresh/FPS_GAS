@@ -1,0 +1,15 @@
+Grill-me阶段:
+- AggregateBySource + RefreshOnApply
+- AttributeSet 的 PostGameplayEffectExecute 里处理 IncomingDamage
+- GAS 官方 AbilityLocalInputPressed + AbilityInputID/InputTag 映射。需要给 ASC 加BindAbilityActivationToInputComponent，多一层胶水，但对多能力扩展最好。是什么意思
+- 注意 GE 的 Modifier 不能直接用「设置成 MaxHealth的值」，所以更实际的做法是：UFPSResetAttributesEffect 里用 AttributeBased 的FGameplayEffectAttributeCaptureDefinition， 这里有个技术细节：UE 的 GEModifier 支持 AttributeBased 源属性捕获，即「Health += MaxHealth」，配合 Instant +Clamp，是标准做法。我会用这个。
+- Config/DefaultGame.ini      │ 加 GameplayCueNotifyPaths（等子代理确认段名后写）GameplayCueNotifyPaths 一旦显式配置，引擎就不再扫整个 /Game——以后所有 Cue 蓝图必须放进Content/FPS_NetWork0/AbilitySystem/Cue/。
+
+
+UE编辑器操作阶段：
+（1） ⚠ `Cue` 这个目录名必须和 `Config/DefaultGame.ini` 里的
+	> `+GameplayCueNotifyPaths=/Game/FPS_NetWork0/AbilitySystem/Cue` 完全一致。
+	> 一旦显式配置了该选项，引擎**就不再扫描整个 `/Game`**，
+	> 放在别处的 Cue 蓝图会静默失效（只打 warning）。
+（2）TickDamageModifier.Attribute = UFPSAttributeSet::GetIncomingDamageAttribute()会自动生成什么函数
+（3）GameplayCueNotify中的重写函数太复杂了，AI看不懂，看文档了解一下

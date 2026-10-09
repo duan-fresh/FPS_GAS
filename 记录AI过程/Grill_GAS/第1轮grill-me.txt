@@ -1,0 +1,27 @@
+Q1：
+	后者+C++优先：DoT/护盾这类 GE 用 C++ 构造（UMyDamageEffect : UGameplayEffect里写构造函数）或至少给出可复制的完整数值表
+Q2：
+	(a)。刷时间，但是对于同一伤害源的不同ability如：后续可能添加的燃烧弹和中毒子弹是要叠加的
+Q3：
+	投掷物，是一个Cube，GA 触发后在服务端 SpawnActor 一个 replicated 的 ASmokeCube（Cube mesh + 半透明材质 +寿命自动销毁）只遮挡视觉，可以穿越，不阻挡子弹，不做伤害、不做致盲 GC。
+Q4：
+	Shield 属性 + 在 AttributeSet 的 PostGameplayEffectExecute 里处理 IncomingDamage，先减 Shield 再减
+  Health。不做自动回复
+Q5：
+	血条上层叠一条蓝色 Shield 条（Overlay，Shield 减的时候可以露出红血，像boss的多层血条一样），记得显示护盾数值，在血条消失后再显示血量数值
+Q6：
+	ASC 放 PlayerState，ReplicationMode = Mixed，IAbilitySystemInterface 实现在 PlayerState 上（Character
+  转发）。烟雾弹这类世界效果走服务端权威 + NetMulticast 表现，不做预测（简单可靠）
+	提问预测（客户端预测技能与扣血）是如何实现的
+Q7：
+	只借鉴架构、命名跟随FPS_GAS 现有规范，CC的命名与原有命名冲突。
+Q8：
+	 (c)。GAS 拿权威，UHealthComponent 降级为「GAS → 现有
+  UI/死亡流程」的适配层，OnDeathStarted、DeathState、重生计时器全部保留可用；护盾在 UHealthComponent 上加
+  Shield/MaxShield + OnShieldChanged 委托即可，旧血条蓝图零改动
+Q9：
+	允许。
+Q10：
+	 (b) 沿用 FPS_GAS 现有模式：新建 IA_Smoke（Content/FPS_NetWork0/Input/InputAction/），在 FPSCharacter 里 BindAction后调 ASC->TryActivateAbilitiesByTag(...)。改动最小、风格统一。
+补充：技术债已经修改好了
+	

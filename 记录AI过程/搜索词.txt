@@ -1,0 +1,8 @@
+{GreatHandling}：AI逻辑或是项目逻辑值得学习的地方
+{BadHandling}：AI处理逻辑或是项目逻辑有瑕疵的地方
+{Error}:AI处理逻辑或是项目逻辑有错的地方
+{Tips}：可能有疑问、改进的地方
+{Warning}：可能会出错的地方，运行错误建议查找
+{Modify_[填写修改的主题]}：代码被AI修改的地方
+{original code}：原有代码被AI覆盖的地方
+{OriginalCode}：建议旧版{original code}统一命名为{OriginalCode}

@@ -1,0 +1,5 @@
+Magnitude：数值
+Inhibition：抑制
+junction：目录连接点，链接
+Stacking：叠加
+Gravity：重力

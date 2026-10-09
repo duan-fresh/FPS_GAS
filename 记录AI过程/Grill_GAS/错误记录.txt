@@ -1,0 +1,2 @@
+1.“UActorComponent::SetIsReplicatedByDefault”: 无法访问 protected 成员(在“UActorComponent”类中声明，应该在Component的构造函数中定义
+2. AddComponent 的语义是“添加一个新的组件实例”，不是构造函数中生成组件

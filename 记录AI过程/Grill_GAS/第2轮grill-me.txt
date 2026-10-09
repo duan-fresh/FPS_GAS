@@ -1,0 +1,16 @@
+Q11:
+	推荐 (c)：UFPSDamageOverTimeEffect（Duration+Period+Stacking）和护盾相关走C++，只有「初始化属性」这种一行配置的用蓝图
+Q12:
+	推荐 (a) + 上述叠加配置。理由是改动最小：Sever_Fire 里已经有命中信息和 Damage，加一行 Apply即可，且天然复用现有服务端权威链路。
+Q13:
+	推荐 (a)。这是 GAS 社区的标准做法（Lyra 也是这个套路），也是你 Q4「先减 Shield 再减Health」能落到一处的唯一写法；否则分流逻辑要在两个地方写两遍。
+Q14:
+	推荐 (a) + 用 ProgressBar（先跑通逻辑，美术风格后面再统一；以后想换材质只需改蓝图，不动 C++）
+Q15:
+	推荐 (a)，一个 Actor 搞定，不用两段生成；碰撞体用 NoCollision（可穿越），只留 ProjectileMovement跟地面做一次落地判定，落地后关闭移动。
+Q16:
+	蓝图指定资源；加冷却 GE（不限制次数，用冷却控制节奏）,要做 GameplayCue方便后续添加视觉内容
+Q17：
+	推荐按上面组织，类名前缀统一 FPS（UFPSAttributeSet、UFPSAbilitySystemComponent、AFPSmokeCube、UGA_Smoke→实际类名UFPSAbility_Smoke）
+Q18：
+	推荐 (a)：IPlayerInterface 保持不动，UHealthComponent 新增 SetFromGAS(float NewHealth, float NewShield) +Shield/MaxShield/OnShieldChanged，StartDeath / DeathTimer / FPSGameMode::RequestRespawn全部原样复用。这样死亡重生逻辑一行不用改。
